@@ -1,1 +1,4 @@
-
+aiohttp
+gspread
+google-auth
+python-dotenv
