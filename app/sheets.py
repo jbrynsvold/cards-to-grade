@@ -12,18 +12,24 @@ def load_cards():
     cards = []
 
     for row in data:
-        try:
-            market_avg = float(str(row.get("Avg") or "0").replace("$", "").replace(",", ""))
-        except ValueError:
-            market_avg = 0.0
+        def parse_float(value):
+            try:
+                return float(str(value).replace("$", "").replace(",", "").strip())
+            except:
+                return 0.0
 
         card = {
-            "name": row.get("Card Name"),
+            "card_name": row.get("Card Name"),
+            "player": row.get("Player"),
             "set": row.get("Set"),
-            "rarity": row.get("Rarity"),
-            "market_avg": market_avg,
-            "psa_grade": row.get("PSA Grade", None),
-            "tcg_price": row.get("TCG Price", 0),
+            "card_number": row.get("Card Number"),
+            "parallel": row.get("Parallel"),
+            "sport": row.get("Sport"),
+            "market_avg": parse_float(row.get("Avg")),
+            "psa_10_price": parse_float(row.get("PSA 10")),
+            "psa_9_price": parse_float(row.get("PSA 9")),
+            "velocity": parse_float(row.get("Velocity")),
+            "tcg_price": parse_float(row.get("TCG Price")),
         }
         cards.append(card)
 
