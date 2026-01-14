@@ -11,7 +11,10 @@ def load_cards():
 
     creds_dict = json.loads(GOOGLE_SERVICE_ACCOUNT_JSON)
 
-    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    scopes = [
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
+    "https://www.googleapis.com/auth/drive.readonly"
+]
     creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 
     client = gspread.authorize(creds)
