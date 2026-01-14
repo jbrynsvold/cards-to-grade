@@ -26,28 +26,26 @@ class EbayClient:
             await self.refresh_token(session)
         return self.token
 
-async def search_listings(self, session, card):
-    token = await self.get_token(session)
+    async def search_listings(self, session, card):  # <- THIS MUST BE INSIDE THE CLASS
+        token = await self.get_token(session)
 
-    # Get fields from the card dict
-    player = card.get("Player", "")
-    set_name = card.get("Set", "")
-    parallel = card.get("Parallel", "")
+        # Extract card info
+        player = card.get("Player", "")
+        set_name = card.get("Set", "")
+        parallel = card.get("Parallel", "")
 
-    # Build the query
-    query = f"{player} {set_name} {parallel}".strip()
+        query = f"{player} {set_name} {parallel}".strip()
+        url = f"https://api.ebay.com/buy/browse/v1/item_summary/search?q={query}&limit=5&filter=conditionIds:1000|1500"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "X-EBAY-C-MARKETPLACE-ID": EBAY_MARKETPLACE_ID,
+            "Content-Type": "application/json"
+        }
 
-    url = f"https://api.ebay.com/buy/browse/v1/item_summary/search?q={query}&limit=5&filter=conditionIds:1000|1500"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "X-EBAY-C-MARKETPLACE-ID": EBAY_MARKETPLACE_ID,
-        "Content-Type": "application/json"
-    }
-
-    try:
-        async with session.get(url, headers=headers) as resp:
-            data = await resp.json()
-            return data.get("itemSummaries", [])
-    except Exception as e:
-        print(f"[eBay] Error searching listings for {card.get('card_name', 'UNKNOWN')}: {e}")
-        return []
+        try:
+            async with session.get(url, headers=headers) as resp:
+                data = await resp.json()
+                return data.get("itemSummaries", [])
+        except Exception as e:
+            print(f"[eBay] Error searching listings for {card.get('card_name', 'UNKNOWN')}: {e}")
+            return []
