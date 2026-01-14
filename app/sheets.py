@@ -3,7 +3,10 @@ from google.oauth2.service_account import Credentials
 from app.config import GOOGLE_SHEET_CARDS_NAME, GOOGLE_SERVICE_ACCOUNT_JSON_DICT
 
 def load_cards():
-    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
     if not GOOGLE_SERVICE_ACCOUNT_JSON_DICT:
         raise ValueError("[Sheets] GOOGLE_SERVICE_ACCOUNT_JSON env variable is missing or empty.")
