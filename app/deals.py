@@ -1,27 +1,31 @@
-from app.ebay import extract_price, extract_listing_url
 from app.discord import send_discord_alert
-from app.config import DEAL_THRESHOLD
+
+
+def calculate_profit(price):
+    return (price * 0.85) - 25
 
 
 async def process_ebay_results_batch(card, listings):
-    if not listings:
-        return
-
-    market_price = card["avg"]
-
     for listing in listings:
         try:
-            price = extract_price(listing)
-            if price <= 0:
-                continue
+            price = float(listing["price"]["value"])
+        except:
+            continue
 
-            if price <= market_price * DEAL_THRESHOLD:
-                listing["parsed_price"] = price
-                listing["resolved_url"] = extract_listing_url(listing)
+        psa10_profit = calculate_profit(card["psa10_price"])
+        psa9_profit = calculate_profit(card["psa9_price"])
 
-                print(f"[Deal] {card['player']} - ${price:.2f}")
+        psa10_margin = (psa10_profit / price * 100) if price else 0
+        psa9_margin = (psa9_profit / price * 100) if price else 0
 
-                await send_discord_alert(card, listing)
+        alert_data = {
+            "card": card,
+            "listing": listing,
+            "price": price,
+            "psa10_profit": psa10_profit,
+            "psa9_profit": psa9_profit,
+            "psa10_margin": psa10_margin,
+            "psa9_margin": psa9_margin,
+        }
 
-        except Exception as e:
-            print("[Deals] Error:", e)
+        await send_discord_alert(alert_data)
