@@ -1,8 +1,12 @@
 import os
+import json
 
 # Google Sheet
 GOOGLE_SHEET_CARDS_NAME = os.environ.get("GOOGLE_SHEET_CARDS_NAME")
+
+# This will now be the raw JSON string of the service account
 GOOGLE_SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+GOOGLE_SERVICE_ACCOUNT_JSON_DICT = json.loads(GOOGLE_SERVICE_ACCOUNT_JSON) if GOOGLE_SERVICE_ACCOUNT_JSON else None
 
 # eBay API
 EBAY_CLIENT_ID = os.environ.get("EBAY_CLIENT_ID")
