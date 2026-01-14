@@ -1,8 +1,6 @@
 import os
+import json
 import gspread
-from dotenv import load_dotenv
-
-load_dotenv()
 
 GOOGLE_SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
 GOOGLE_SHEET_CARDS_NAME = os.environ.get("GOOGLE_SHEET_CARDS_NAME")
@@ -14,23 +12,14 @@ def parse_price(price_str):
     return float(str(price_str).replace("$", "").replace(",", "").strip())
 
 def load_cards():
-    """
-    Load cards from Google Sheet.
-    Expects columns: card_name, player, set, card_number, parallel, sport,
-                     Avg, PSA_10, PSA_9, velocity
-    """
-    if not GOOGLE_SERVICE_ACCOUNT_JSON:
-        raise ValueError("GOOGLE_SERVICE_ACCOUNT_JSON not set in environment")
-    
-    # Load JSON key from environment
-    import json
-    creds_dict = json.loads(GOOGLE_SERVICE_ACCOUNT_JSON)
+    if not GOOGLE_SERVICE_ACCOUNT_JSON or not GOOGLE_SHEET_CARDS_NAME:
+        raise ValueError("Google Sheets env vars not set")
 
+    creds_dict = json.loads(GOOGLE_SERVICE_ACCOUNT_JSON)
     client = gspread.service_account_from_dict(creds_dict)
     sheet = client.open(GOOGLE_SHEET_CARDS_NAME).sheet1
 
     rows = sheet.get_all_records()
-
     cards = []
     for row in rows:
         try:
