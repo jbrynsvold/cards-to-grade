@@ -2,7 +2,7 @@ import asyncio
 from app.sheets import load_cards
 from app.ebay import search_ebay_listings
 from app.deals import process_ebay_results_batch
-from app.discord import send_discord_alert
+from app.discord_alerts import send_discord_alert
 from app.config import EBAY_CONCURRENT_REQUESTS, BATCH_DELAY_SECONDS
 
 async def worker(semaphore, session, card):
