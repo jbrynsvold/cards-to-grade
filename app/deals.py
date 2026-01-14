@@ -13,13 +13,20 @@ def calculate_profit_margin(profit, cost):
 async def process_ebay_results_batch(session, ebay_client, semaphore, card):
     async with semaphore:
         listings = await ebay_client.search_listings(session, card)
+
+        # Log the search string instead of card_name with number
+        player = card.get("player", "")
+        set_name = card.get("set", "")
+        parallel = card.get("parallel", "")
+        query_str = f"{player} {set_name} {parallel}".strip()
+
         if not listings:
-            print(f"[Deals] No listings found for {card['card_name']}")
+            print(f"[Deals] No listings found for {query_str}")
             return
 
         for listing in listings:
             try:
-                item_id = listing.get("itemId") or listing.get("itemId") or listing.get("url")
+                item_id = listing.get("itemId") or listing.get("url")
                 if item_id in dedupe_cache:
                     continue
                 dedupe_cache.add(item_id)
@@ -33,11 +40,11 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
 
                 alert_data = {
                     "card_name": card["card_name"],
-                    "player": card["player"],
-                    "set": card["set"],
-                    "card_number": card["card_number"],
-                    "parallel": card["parallel"],
-                    "sport": card["sport"],
+                    "player": player,
+                    "set": set_name,
+                    "card_number": card.get("card_number", ""),
+                    "parallel": parallel,
+                    "sport": card.get("sport", ""),
                     "ebay_title": listing.get("title", "No title"),
                     "ebay_price": price,
                     "market_avg": card["market_avg"],
@@ -52,4 +59,4 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
 
                 await send_discord_alert(alert_data)
             except Exception as e:
-                print(f"[Deals] Error processing listing: {e}")
+                print(f"[Deals] Error processing listing for {query_str}: {e}")
