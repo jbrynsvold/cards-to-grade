@@ -26,13 +26,13 @@ class EbayClient:
             await self.refresh_token(session)
         return self.token
 
-    async def search_listings(self, session, card):  # <- THIS MUST BE INSIDE THE CLASS
+    async def search_listings(self, session, card):
         token = await self.get_token(session)
 
-        # Extract card info
-        player = card.get("Player", "")
-        set_name = card.get("Set", "")
-        parallel = card.get("Parallel", "")
+        # Only use Player + Set + Parallel for the search
+        player = card.get("player", "")
+        set_name = card.get("set", "")
+        parallel = card.get("parallel", "")
 
         query = f"{player} {set_name} {parallel}".strip()
         url = f"https://api.ebay.com/buy/browse/v1/item_summary/search?q={query}&limit=5&filter=conditionIds:1000|1500"
@@ -47,5 +47,5 @@ class EbayClient:
                 data = await resp.json()
                 return data.get("itemSummaries", [])
         except Exception as e:
-            print(f"[eBay] Error searching listings for {card.get('card_name', 'UNKNOWN')}: {e}")
+            print(f"[eBay] Error searching listings for {query}: {e}")
             return []
