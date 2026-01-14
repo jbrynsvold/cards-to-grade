@@ -17,7 +17,11 @@ class EbayClient:
             "Content-Type": "application/x-www-form-urlencoded"
         }
         data = {"grant_type": "client_credentials", "scope": "https://api.ebay.com/oauth/api_scope"}
-        async with session.post("https://api.ebay.com/identity/v1/oauth2/token", headers=headers, data=data) as resp:
+        async with session.post(
+            "https://api.ebay.com/identity/v1/oauth2/token",
+            headers=headers,
+            data=data
+        ) as resp:
             resp_json = await resp.json()
             self.token = resp_json.get("access_token")
             self.token_expiry = time.time() + int(resp_json.get("expires_in", 3600)) - 60
@@ -27,7 +31,11 @@ class EbayClient:
             await self.refresh_token(session)
         return self.token
 
-    async def search_listings(self, session, card):
+    async def search_listings(self, session, card, query_override=None):
+        """
+        Search eBay listings for a card.
+        If query_override is provided, use that instead of Player+Set+Parallel.
+        """
         token = await self.get_token(session)
 
         player = card.get("player", "")
@@ -35,13 +43,12 @@ class EbayClient:
         parallel = card.get("parallel", "")
         market_avg = card.get("market_avg", 0.0)
 
-        query = f"{player} {set_name} {parallel}".strip()
-        query_encoded = quote(query)  # URL encode spaces and special characters
+        # Use override query if provided
+        query = query_override or f"{player} {set_name} {parallel}".strip()
+        query_encoded = quote(query)
 
-        # Build filter for Buy It Now and under market_avg
-        filters = [
-            "buyingOptions:FIXED_PRICE"
-        ]
+        # Filter: Buy It Now and optionally under market_avg
+        filters = ["buyingOptions:FIXED_PRICE"]
         if market_avg > 0:
             filters.append(f"price:[0..{market_avg}]")
 
@@ -59,7 +66,7 @@ class EbayClient:
                 data = await resp.json()
                 listings = data.get("itemSummaries", [])
 
-                # Extra safety: remove listings above market_avg if any slipped through
+                # Extra safety: remove any listings above market_avg
                 filtered_listings = []
                 for item in listings:
                     price_str = item.get("price", {}).get("value") or item.get("price", 0)
@@ -69,6 +76,10 @@ class EbayClient:
                         price = 0.0
                     if price <= market_avg:
                         filtered_listings.append(item)
+
+                # Fallback fuzzy: if nothing found, search Player + Set only
+                if not filtered_listings and not query_override:
+                    return await self.search_listings(session, card, query_override=f"{player} {set_name}")
 
                 return filtered_listings
         except Exception as e:
