@@ -1,80 +1,54 @@
 import os
-import json
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from dotenv import load_dotenv
 
-from app.config import GOOGLE_SHEET_CARDS_NAME, GOOGLE_SERVICE_ACCOUNT_JSON
+load_dotenv()
 
-def parse_currency(value):
-    """Convert $273.46 or 273.46 to float safely."""
-    if not value:
+GOOGLE_SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+GOOGLE_SHEET_CARDS_NAME = os.environ.get("GOOGLE_SHEET_CARDS_NAME")
+
+def parse_price(price_str):
+    """Convert string like '$273.46' to float 273.46"""
+    if not price_str:
         return 0.0
-    if isinstance(value, (int, float)):
-        return float(value)
-    value_str = str(value).replace("$", "").replace(",", "").strip()
-    try:
-        return float(value_str)
-    except Exception:
-        return 0.0
+    return float(str(price_str).replace("$", "").replace(",", "").strip())
 
 def load_cards():
-    """Load cards from Google Sheet and return a list of dicts."""
+    """
+    Load cards from Google Sheet.
+    Expects columns: card_name, player, set, card_number, parallel, sport,
+                     Avg, PSA_10, PSA_9, velocity
+    """
     if not GOOGLE_SERVICE_ACCOUNT_JSON:
-        raise Exception("[Sheets] GOOGLE_SERVICE_ACCOUNT_JSON not set")
-
+        raise ValueError("GOOGLE_SERVICE_ACCOUNT_JSON not set in environment")
+    
+    # Load JSON key from environment
+    import json
     creds_dict = json.loads(GOOGLE_SERVICE_ACCOUNT_JSON)
-    scopes = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scopes)
-    client = gspread.authorize(creds)
 
+    client = gspread.service_account_from_dict(creds_dict)
     sheet = client.open(GOOGLE_SHEET_CARDS_NAME).sheet1
+
     rows = sheet.get_all_records()
 
     cards = []
-    seen = set()
     for row in rows:
-        card_id = (
-            row.get("Card", "") + "|" +
-            row.get("Player", "") + "|" +
-            row.get("Set", "") + "|" +
-            str(row.get("Number", "")) + "|" +
-            str(row.get("Parallel", ""))
-        )
-        if card_id in seen:
-            continue
-        seen.add(card_id)
-
-        psa_10_price = parse_currency(row.get("PSA 10 Price"))
-        psa_9_price = parse_currency(row.get("PSA 9 Price"))
-
-        psa_10_profit = psa_10_price * 0.85 - 25
-        psa_9_profit = psa_9_price * 0.85 - 25
-
-        psa_10_margin = (psa_10_profit / 25) * 100 if psa_10_profit else 0
-        psa_9_margin = (psa_9_profit / 25) * 100 if psa_9_profit else 0
-
-        # Skip cards that don't meet PSA10 profit margin threshold
-        if psa_10_margin < 100:
+        try:
+            cards.append({
+                "card_name": row.get("card_name") or row.get("Name") or "",
+                "player": row.get("player") or "",
+                "set": row.get("set") or "",
+                "card_number": row.get("card_number") or row.get("Card Number") or "",
+                "parallel": row.get("parallel") or "",
+                "sport": row.get("sport") or "",
+                "market_avg": parse_price(row.get("Avg")),
+                "psa_10_price": parse_price(row.get("PSA_10")),
+                "psa_9_price": parse_price(row.get("PSA_9")),
+                "velocity": float(row.get("velocity") or 0),
+            })
+        except Exception as e:
+            print(f"[Sheets] Error parsing row: {row} | {e}")
             continue
 
-        card = {
-            "card_name": row.get("Card", ""),
-            "player": row.get("Player", ""),
-            "set": row.get("Set", ""),
-            "number": row.get("Number", ""),
-            "parallel": row.get("Parallel", ""),
-            "sport": row.get("Sport", ""),
-            "market_avg": parse_currency(row.get("Avg")),
-            "velocity": parse_currency(row.get("Velocity")),
-            "psa_10_price": psa_10_price,
-            "psa_9_price": psa_9_price,
-            "psa_10_profit": psa_10_profit,
-            "psa_9_profit": psa_9_profit,
-            "psa_10_margin": psa_10_margin,
-            "psa_9_margin": psa_9_margin
-        }
-
-        cards.append(card)
-
-    print(f"[Sheets] Loaded {len(cards)} cards from Google Sheet.")
+    print(f"[Sheets] Loaded {len(cards)} cards from sheet.")
     return cards
