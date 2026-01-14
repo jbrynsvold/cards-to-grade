@@ -21,7 +21,8 @@ async def send_discord_alert(data):
 **Link:** {listing['url']}
 """
 
-    payload = {"content": content}
-
     async with aiohttp.ClientSession() as session:
-        await session.post(DISCORD_WEBHOOK_URL, json=payload)
+        try:
+            await session.post(DISCORD_WEBHOOK_URL, json={"content": content})
+        except Exception as e:
+            print(f"[Discord] Error sending alert: {e}")
