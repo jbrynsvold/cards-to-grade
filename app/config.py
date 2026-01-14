@@ -1,25 +1,18 @@
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # Google Sheet
-GOOGLE_SHEET_CARDS_NAME = os.getenv("GOOGLE_SHEET_CARDS_NAME")
-GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+GOOGLE_SHEET_CARDS_NAME = os.environ.get("GOOGLE_SHEET_CARDS_NAME")
+GOOGLE_SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
 
 # eBay API
-EBAY_APP_ID = os.getenv("EBAY_APP_ID")
-EBAY_CERT_ID = os.getenv("EBAY_CERT_ID")
-EBAY_DEV_ID = os.getenv("EBAY_DEV_ID")
-EBAY_TOKEN = os.getenv("EBAY_TOKEN")  # This is refreshed automatically in ebay.py
-EBAY_SITE_ID = "0"  # US
+EBAY_CLIENT_ID = os.environ.get("EBAY_CLIENT_ID")
+EBAY_CLIENT_SECRET = os.environ.get("EBAY_CLIENT_SECRET")
+EBAY_MARKETPLACE_ID = os.environ.get("EBAY_MARKETPLACE_ID", "EBAY_US")
 
 # Discord
-DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 
-# Bot
-CONCURRENT_EBAY_REQUESTS = int(os.getenv("CONCURRENT_EBAY_REQUESTS", 10))
-PSA10_PROFIT_THRESHOLD = float(os.getenv("PSA10_PROFIT_THRESHOLD", 100))  # in %
-
-# Logging
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+# Bot settings
+EBAY_CONCURRENT_REQUESTS = int(os.environ.get("EBAY_CONCURRENT_REQUESTS", 10))
+BATCH_DELAY_SECONDS = int(os.environ.get("BATCH_DELAY_SECONDS", 60))
+PSA10_PROFIT_THRESHOLD = float(os.environ.get("PSA10_PROFIT_THRESHOLD", 100))
