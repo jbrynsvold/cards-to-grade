@@ -1,51 +1,42 @@
-import aiohttp
-from app.config import DISCORD_WEBHOOK_URL
+import asyncio
+from app.discord import send_discord_alert
 
-async def send_discord_alert(card, listing, url=None, listing_price=None):
-    """Send a Discord alert for a card listing."""
+SENT_ALERTS = set()
 
-    if not DISCORD_WEBHOOK_URL:
-        print("[Discord] No webhook URL set, skipping alert.")
-        return
+def calculate_profit(price):
+    """Profit = (PSA 10 Price * 0.85) - 25"""
+    return round(price * 0.85 - 25, 2)
 
-    card_name = card.get("card_name", "Unknown Card")
-    set_name = card.get("set", "")
-    number = card.get("number", "")
-    parallel = card.get("parallel", "")
-    sport = card.get("sport", "")
-    market_avg = card.get("market_avg", 0)
-    velocity = card.get("velocity", 0)
-    psa_10_price = card.get("psa_10_price", 0)
-    psa_9_price = card.get("psa_9_price", 0)
-    psa_10_profit = card.get("psa_10_profit", 0)
-    psa_9_profit = card.get("psa_9_profit", 0)
-    psa_10_margin = card.get("psa_10_margin", 0)
-    psa_9_margin = card.get("psa_9_margin", 0)
+async def process_ebay_results_batch(card, listings):
+    for listing in listings:
+        key = (card["card_name"], listing["url"])
+        if key in SENT_ALERTS:
+            continue  # dedupe
+        SENT_ALERTS.add(key)
 
-    listing_title = listing.get("title", "No title")
-    listing_price_str = f"${listing_price:.2f}" if listing_price else "N/A"
-    url_str = url or "URL not available"
+        psa_10_profit = calculate_profit(card["psa_10_price"])
+        psa_10_margin = (psa_10_profit / card["psa_10_price"] * 100) if card["psa_10_price"] else 0
 
-    message = (
-        f"**Card:** {card_name} {set_name} #{number} {parallel}\n"
-        f"**eBay Listing:** {listing_title}\n"
-        f"**eBay Price:** {listing_price_str}\n"
-        f"**Market Average Price:** ${market_avg:.2f}\n"
-        f"**PSA 10 Price:** ${psa_10_price:.2f}\n"
-        f"**PSA 10 Profit:** ${psa_10_profit:.2f}\n"
-        f"**PSA 10 Profit Margin:** {psa_10_margin:.2f}%\n"
-        f"**PSA 9 Price:** ${psa_9_price:.2f}\n"
-        f"**PSA 9 Profit:** ${psa_9_profit:.2f}\n"
-        f"**PSA 9 Profit Margin:** {psa_9_margin:.2f}%\n"
-        f"**Velocity:** {velocity}\n"
-        f"**Link:** {url_str}"
-    )
+        if psa_10_margin < 100:
+            continue  # skip if profit margin < 100%
 
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(DISCORD_WEBHOOK_URL, json={"content": message}) as resp:
-                if resp.status != 204:
-                    text = await resp.text()
-                    print(f"[Discord] Failed to send alert: {resp.status} {text}")
-        except Exception as e:
-            print(f"[Discord] Error sending alert: {e}")
+        psa_9_profit = calculate_profit(card["psa_9_price"])
+        psa_9_margin = (psa_9_profit / card["psa_9_price"] * 100) if card["psa_9_price"] else 0
+
+        alert_payload = {
+            "card_name": card["card_name"],
+            "listing_title": listing["title"],
+            "listing_url": listing["url"],
+            "listing_price": listing["price"],
+            "market_avg": card["market_avg"],
+            "psa_10_price": card["psa_10_price"],
+            "psa_10_profit": psa_10_profit,
+            "psa_10_margin": psa_10_margin,
+            "psa_9_price": card["psa_9_price"],
+            "psa_9_profit": psa_9_profit,
+            "psa_9_margin": psa_9_margin,
+            "velocity": card["velocity"],
+        }
+
+        await send_discord_alert(alert_payload, listing)
+        await asyncio.sleep(0.5)  # slight throttle
