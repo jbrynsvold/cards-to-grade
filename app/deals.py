@@ -1,41 +1,28 @@
+import asyncio
+from app.ebay import search_ebay_listings
 from app.discord import send_discord_alert
 
+async def process_ebay_results_batch(card, listings):
+    """
+    Process eBay search results for a single card.
+    Sends alerts to Discord if found.
+    """
+    if not listings:
+        print(f"[Deals] No listings found for {card['card_name']}")
+        return
 
-def calculate_profit(price):
-    return (price * 0.85) - 25
-
-
-async def process_ebay_results_batch(card, listings, seen_listings):
     for listing in listings:
-        # Deduplicate by URL or itemId
-        listing_id = listing.get("url") or listing.get("itemId")
-        if not listing_id or listing_id in seen_listings:
-            continue
-        seen_listings.add(listing_id)
-
         try:
-            price = float(listing["price"]["value"])
-        except:
+            price_field = listing.get("price")
+            if isinstance(price_field, dict):
+                price_field = price_field.get("value")
+            price = float(str(price_field).replace("$", "").replace(",", "").strip())
+            if price <= 0:
+                continue
+
+            url = listing.get("url") or listing.get("itemUrl") or "URL not available"
+            await send_discord_alert(card, listing, url=url, listing_price=price)
+
+        except Exception as e:
+            print(f"[Deals] Skipping listing due to error: {e}")
             continue
-
-        psa10_profit = calculate_profit(card["psa10_price"])
-        psa9_profit = calculate_profit(card["psa9_price"])
-
-        psa10_margin = (psa10_profit / price * 100) if price else 0
-        psa9_margin = (psa9_profit / price * 100) if price else 0
-
-        # Only alert if PSA 10 profit margin >= 100%
-        if psa10_margin < 100:
-            continue
-
-        alert_data = {
-            "card": card,
-            "listing": listing,
-            "price": price,
-            "psa10_profit": psa10_profit,
-            "psa9_profit": psa9_profit,
-            "psa10_margin": psa10_margin,
-            "psa9_margin": psa9_margin,
-        }
-
-        await send_discord_alert(alert_data)
