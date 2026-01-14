@@ -28,7 +28,7 @@ class EbayClient:
 
     async def search_listings(self, session, card):
         token = await self.get_token(session)
-        query = f"{card['card_name']} {card['player']} {card['set']} {card['parallel']}"
+        query = f"{player} {set} {parallel}".strip()
         url = f"https://api.ebay.com/buy/browse/v1/item_summary/search?q={query}&limit=5&filter=conditionIds:1000|1500"
         headers = {
             "Authorization": f"Bearer {token}",
