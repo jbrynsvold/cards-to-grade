@@ -1,9 +1,9 @@
 import aiohttp
-from config import DISCORD_WEBHOOK_URL
+from app.config import DISCORD_WEBHOOK_URL
 
 async def send_discord_alert(message: str):
     if not DISCORD_WEBHOOK_URL:
-        print("[Discord] No webhook URL configured.")
+        print("[Discord] No webhook configured.")
         return
 
     async with aiohttp.ClientSession() as session:
