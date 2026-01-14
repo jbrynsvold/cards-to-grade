@@ -1,7 +1,7 @@
 import asyncio
-from sheets import load_cards
-from deals import process_ebay_results_batch
-from config import CONCURRENT_EBAY_REQUESTS
+from app.sheets import load_cards
+from app.deals import process_ebay_results_batch
+from app.config import CONCURRENT_EBAY_REQUESTS
 
 async def worker(card, semaphore):
     await process_ebay_results_batch(semaphore, card, [])
