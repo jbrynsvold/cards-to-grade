@@ -1,3 +1,4 @@
+import json
 import gspread
 from google.oauth2.service_account import Credentials
 from app.config import GOOGLE_SHEET_CARDS_NAME, GOOGLE_SERVICE_ACCOUNT_JSON
@@ -6,7 +7,11 @@ def load_cards():
     scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive" ]
-    creds = Credentials.from_service_account_info(GOOGLE_SERVICE_ACCOUNT_JSON, scopes=scopes)
+
+    # Parse the JSON string into a Python dict
+    service_account_info = json.loads(GOOGLE_SERVICE_ACCOUNT_JSON)
+
+    creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
     client = gspread.authorize(creds)
     sheet = client.open(GOOGLE_SHEET_CARDS_NAME).sheet1
 
@@ -23,7 +28,6 @@ def load_cards():
         card_name = row.get("Card")
         card_set = row.get("Set")
 
-        # Skip any rows missing required info
         if not card_name or not card_set:
             continue
 
@@ -38,9 +42,14 @@ def load_cards():
             "psa_10_price": parse_float(row.get("PSA 10 Price")),
             "psa_9_price": parse_float(row.get("PSA 9 Price")),
             "velocity": parse_float(row.get("Velocity")),
-            "tcg_price": parse_float(row.get("Last Sale")),  # optional, if needed
+            "tcg_price": parse_float(row.get("Last Sale")),
         }
         cards.append(card)
 
     print(f"[Sheets] Loaded {len(cards)} cards from sheet.")
     return cards
+
+
+import gspread
+from google.oauth2.service_account import Credentials
+from app.config import GOOGLE_SHEET_CARDS_NAME, GOOGLE_SERVICE_ACCOUNT_JSON
