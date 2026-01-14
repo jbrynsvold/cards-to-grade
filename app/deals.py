@@ -28,7 +28,7 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
         for listing in listings:
             try:
                 # Unique ID for dedupe
-                item_id = listing.get("itemId") or listing.get("itemId") or listing.get("itemWebUrl")
+                item_id = listing.get("itemId") or listing.get("itemWebUrl")
                 if item_id in dedupe_cache:
                     continue
                 dedupe_cache.add(item_id)
@@ -58,7 +58,6 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
                     "card_name": card.get("card_name"),
                     "player": card.get("player"),
                     "set": card.get("set"),
-                    "card_number": card.get("card_number"),
                     "parallel": card.get("parallel"),
                     "sport": card.get("sport"),
                     "ebay_title": listing.get("title", "No title"),
