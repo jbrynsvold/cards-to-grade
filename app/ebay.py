@@ -1,52 +1,44 @@
 import aiohttp
-import asyncio
-from app.config import EBAY_APP_ID, EBAY_TOKEN, PSA10_PROFIT_THRESHOLD
+import time
+import base64
+from app.config import EBAY_CLIENT_ID, EBAY_CLIENT_SECRET, EBAY_MARKETPLACE_ID
 
-# Simulate automatic refresh for token
-async def refresh_ebay_token():
-    # Implement refresh logic here
-    # For example, POST to your refresh endpoint and update EBAY_TOKEN
-    return EBAY_TOKEN
+class EbayClient:
+    def __init__(self):
+        self.token = None
+        self.token_expiry = 0
 
-async def fetch_ebay_listings(card_name):
-    token = await refresh_ebay_token()
-    url = "https://svcs.ebay.com/services/search/FindingService/v1"
-    params = {
-        "OPERATION-NAME": "findItemsByKeywords",
-        "SERVICE-VERSION": "1.0.0",
-        "SECURITY-APPNAME": EBAY_APP_ID,
-        "RESPONSE-DATA-FORMAT": "JSON",
-        "keywords": card_name,
-        "paginationInput.entriesPerPage": 10,
-    }
+    async def refresh_token(self, session):
+        auth = f"{EBAY_CLIENT_ID}:{EBAY_CLIENT_SECRET}"
+        b64_auth = base64.b64encode(auth.encode()).decode()
+        headers = {
+            "Authorization": f"Basic {b64_auth}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        data = {"grant_type": "client_credentials", "scope": "https://api.ebay.com/oauth/api_scope"}
+        async with session.post("https://api.ebay.com/identity/v1/oauth2/token", headers=headers, data=data) as resp:
+            resp_json = await resp.json()
+            self.token = resp_json.get("access_token")
+            self.token_expiry = time.time() + int(resp_json.get("expires_in", 3600)) - 60
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params) as resp:
-            data = await resp.json()
-            items = data.get("findItemsByKeywordsResponse", [{}])[0]\
-                        .get("searchResult", [{}])[0].get("item", [])
-            results = []
-            seen_titles = set()
+    async def get_token(self, session):
+        if not self.token or time.time() >= self.token_expiry:
+            await self.refresh_token(session)
+        return self.token
 
-            for item in items:
-                title = item.get("title", [""])[0]
-                price_str = item.get("sellingStatus", [{}])[0].get("currentPrice", [{}])[0].get("__value__", "0")
-                try:
-                    price = float(price_str)
-                except:
-                    price = 0.0
-
-                if title in seen_titles:
-                    continue
-                seen_titles.add(title)
-
-                if "PSA 10" in title.upper() and price > 0:
-                    if price / 1.0 < PSA10_PROFIT_THRESHOLD / 100.0:
-                        continue
-
-                results.append({
-                    "title": title,
-                    "price": price,
-                    "link": item.get("viewItemURL", [""])[0]
-                })
-            return results
+    async def search_listings(self, session, card):
+        token = await self.get_token(session)
+        query = f"{card['card_name']} {card['player']} {card['set']} {card['parallel']}"
+        url = f"https://api.ebay.com/buy/browse/v1/item_summary/search?q={query}&limit=5&filter=conditionIds:1000|1500"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "X-EBAY-C-MARKETPLACE-ID": EBAY_MARKETPLACE_ID,
+            "Content-Type": "application/json"
+        }
+        try:
+            async with session.get(url, headers=headers) as resp:
+                data = await resp.json()
+                return data.get("itemSummaries", [])
+        except Exception as e:
+            print(f"[eBay] Error searching listings for {card['card_name']}: {e}")
+            return []
