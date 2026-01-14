@@ -1,49 +1,44 @@
-import os
 import aiohttp
-import base64
+from config import EBAY_APP_ID, PSA10_PROFIT_THRESHOLD
 
-EBAY_CLIENT_ID = os.environ.get("EBAY_CLIENT_ID")
-EBAY_CLIENT_SECRET = os.environ.get("EBAY_CLIENT_SECRET")
-EBAY_MARKETPLACE_ID = os.environ.get("EBAY_MARKETPLACE_ID") or "EBAY_US"
+async def fetch_ebay_listings(card_name):
+    url = f"https://svcs.ebay.com/services/search/FindingService/v1"
+    params = {
+        "OPERATION-NAME": "findItemsByKeywords",
+        "SERVICE-VERSION": "1.0.0",
+        "SECURITY-APPNAME": EBAY_APP_ID,
+        "RESPONSE-DATA-FORMAT": "JSON",
+        "keywords": card_name,
+    }
 
-EBAY_TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token"
-EBAY_FINDING_URL = "https://api.ebay.com/buy/browse/v1/item_summary/search"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, params=params) as resp:
+            data = await resp.json()
+            items = data.get("findItemsByKeywordsResponse", [{}])[0].get("searchResult", [{}])[0].get("item", [])
+            results = []
+            seen_titles = set()
 
-class EbayAPI:
-    def __init__(self):
-        self.access_token = None
+            for item in items:
+                title = item.get("title", [""])[0]
+                price_str = item.get("sellingStatus", [{}])[0].get("currentPrice", [{}])[0].get("__value__", "0")
+                try:
+                    price = float(price_str)
+                except:
+                    price = 0.0
 
-    async def refresh_token(self, session):
-        auth = base64.b64encode(f"{EBAY_CLIENT_ID}:{EBAY_CLIENT_SECRET}".encode()).decode()
-        headers = {"Content-Type": "application/x-www-form-urlencoded", "Authorization": f"Basic {auth}"}
-        data = {"grant_type": "client_credentials", "scope": "https://api.ebay.com/oauth/api_scope"}
-        async with session.post(EBAY_TOKEN_URL, headers=headers, data=data) as resp:
-            resp_json = await resp.json()
-            self.access_token = resp_json.get("access_token")
+                # Dedupe by title
+                if title in seen_titles:
+                    continue
+                seen_titles.add(title)
 
-    async def search(self, session, query):
-        if not self.access_token:
-            await self.refresh_token(session)
-        params = {
-            "q": query,
-            "limit": 5,
-            "filter": f"priceCurrency:USD,marketplaceId:{EBAY_MARKETPLACE_ID}"
-        }
-        headers = {"Authorization": f"Bearer {self.access_token}"}
-        async with session.get(EBAY_FINDING_URL, headers=headers, params=params) as resp:
-            return await resp.json()
+                # PSA 10 profit check
+                if "PSA 10" in title.upper() and price > 0:
+                    if price / 1.0 < PSA10_PROFIT_THRESHOLD / 100.0:  # Example calculation
+                        continue
 
-ebay_api = EbayAPI()
-
-async def search_ebay_listings(session, card):
-    query = f"{card['player']} {card['set']} {card['card_name']} {card['parallel']}".strip()
-    results = await ebay_api.search(session, query)
-    items = results.get("itemSummaries", [])
-    listings = []
-    for item in items:
-        listings.append({
-            "title": item.get("title"),
-            "price": float(item["price"]["value"]),
-            "url": item.get("itemWebUrl")
-        })
-    return listings
+                results.append({
+                    "title": title,
+                    "price": price,
+                    "link": item.get("viewItemURL", [""])[0]
+                })
+            return results
