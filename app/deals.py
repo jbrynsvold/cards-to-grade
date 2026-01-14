@@ -1,4 +1,4 @@
-from app.discord import send_discord_alert
+from app.discord_alerts import send_discord_alert
 
 def calculate_psa_profit(price):
     """PSA Profit = (PSA Price * 0.85) - 25"""
