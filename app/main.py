@@ -15,6 +15,7 @@ async def worker(semaphore, session, card):
 
 async def run_bot():
     cards = load_cards()
+    print(f"[Main] Loaded {len(cards)} cards")
 
     semaphore = asyncio.Semaphore(EBAY_CONCURRENT_REQUESTS)
 
