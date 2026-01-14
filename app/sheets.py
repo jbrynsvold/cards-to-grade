@@ -3,7 +3,9 @@ from google.oauth2.service_account import Credentials
 from app.config import GOOGLE_SHEET_CARDS_NAME, GOOGLE_SERVICE_ACCOUNT_JSON
 
 def load_cards():
-    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive" ]
     creds = Credentials.from_service_account_info(GOOGLE_SERVICE_ACCOUNT_JSON, scopes=scopes)
     client = gspread.authorize(creds)
     sheet = client.open(GOOGLE_SHEET_CARDS_NAME).sheet1
