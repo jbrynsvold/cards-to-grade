@@ -44,9 +44,9 @@ async def run_bot():
             print("[Main] Starting scan cycle...")
             tasks = [worker(card, session, ebay_client, semaphore) for card in cards]
             await asyncio.gather(*tasks)
-print(f"[Main] Cycle complete. Sleeping {BATCH_DELAY_SECONDS}s\n")
-ebay_client.update_last_scan_time()
-await asyncio.sleep(BATCH_DELAY_SECONDS)
+            print(f"[Main] Cycle complete. Sleeping {BATCH_DELAY_SECONDS}s\n")
+            ebay_client.update_last_scan_time()
+            await asyncio.sleep(BATCH_DELAY_SECONDS)
 
 
 if __name__ == "__main__":
