@@ -3,6 +3,8 @@ from app.discord_alerts import send_discord_alert
 # Simple dedupe cache to avoid duplicate alerts
 dedupe_cache = set()
 
+BLOCKED_KEYWORDS = ["japanese", "japan"]
+
 def calculate_psa_profit(price):
     """Estimate profit for a PSA graded card"""
     return round(price * 0.85 - 25, 2)
@@ -12,6 +14,10 @@ def calculate_profit_margin(profit, cost):
     if cost == 0:
         return 0.0
     return round((profit / cost) * 100, 2)
+
+def is_blocked_title(title: str) -> bool:
+    t = title.lower()
+    return any(word in t for word in BLOCKED_KEYWORDS)
 
 async def process_ebay_results_batch(session, ebay_client, semaphore, card):
     """
@@ -27,6 +33,12 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
 
         for listing in listings:
             try:
+                title = listing.get("title", "")
+
+                # 🚫 Filter Japanese listings
+                if is_blocked_title(title):
+                    continue
+
                 # Unique ID for dedupe
                 item_id = listing.get("itemId") or listing.get("itemWebUrl")
                 if item_id in dedupe_cache:
@@ -40,27 +52,24 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
                 except:
                     price = 0.0
 
-                # Skip listings above market_avg (extra safety)
+                # Skip listings above market_avg
                 if price > card.get("market_avg", 0):
-                    print(f"[Deals] Skipped '{listing.get('title', 'No title')}' (${price}) over market_avg (${card['market_avg']})")
                     continue
 
                 # Calculate PSA profit/margin
                 psa_profit = calculate_psa_profit(card.get("psa_10_price", 0))
                 psa_margin = calculate_profit_margin(psa_profit, price)
 
-                # Skip low margin deals
                 if psa_margin < 100:
                     continue
 
-                # Prepare alert data
                 alert_data = {
                     "card_name": card.get("card_name"),
                     "player": card.get("player"),
                     "set": card.get("set"),
                     "parallel": card.get("parallel"),
                     "sport": card.get("sport"),
-                    "ebay_title": listing.get("title", "No title"),
+                    "ebay_title": title,
                     "ebay_price": price,
                     "market_avg": card.get("market_avg"),
                     "psa_10_price": card.get("psa_10_price"),
