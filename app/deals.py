@@ -4,8 +4,8 @@ import re
 # Simple dedupe cache to avoid duplicate alerts
 dedupe_cache = set()
 
-BLOCKED_KEYWORDS = ["japanese", "japan"]
-CARD_NUMBER_REGEX = re.compile(r"#\s*([A-Za-z0-9/]+)")
+BLOCKED_KEYWORDS = ["japanese", "japan", "korea", "korean"]
+CARD_NUMBER_REGEX = re.compile(r"(?:#|\b)(\d{1,4}/\d{1,4})\b")
 
 
 def is_blocked_title(title: str) -> bool:
