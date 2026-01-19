@@ -1,16 +1,17 @@
 from app.discord_alerts import send_discord_alert
+import re
 
 # Simple dedupe cache to avoid duplicate alerts
 dedupe_cache = set()
 
 BLOCKED_KEYWORDS = ["japanese", "japan"]
 
+CARD_NUMBER_REGEX = re.compile(r"#\s*([A-Za-z0-9/]+)")
+
 def calculate_psa_profit(price):
-    """Estimate profit for a PSA graded card"""
     return round(price * 0.85 - 25, 2)
 
 def calculate_profit_margin(profit, cost):
-    """Return profit margin percentage"""
     if cost == 0:
         return 0.0
     return round((profit / cost) * 100, 2)
@@ -19,17 +20,31 @@ def is_blocked_title(title: str) -> bool:
     t = title.lower()
     return any(word in t for word in BLOCKED_KEYWORDS)
 
+def extract_card_number_from_title(title: str):
+    """
+    Returns normalized card number from eBay title if present, else None
+    """
+    match = CARD_NUMBER_REGEX.search(title)
+    if not match:
+        return None
+    return match.group(1).lower().replace(" ", "")
+
+def normalize_card_number(num):
+    if not num:
+        return None
+    return str(num).lower().replace(" ", "")
+
 async def process_ebay_results_batch(session, ebay_client, semaphore, card):
-    """
-    Search eBay listings for a card and send Discord alerts for Buy It Now listings
-    that are under market_avg price and meet PSA profit thresholds.
-    """
     async with semaphore:
         listings = await ebay_client.search_listings(session, card)
 
         if not listings:
             print(f"[Deals] No Buy It Now listings under market_avg for '{card['card_name']}'")
             return
+
+        sheet_card_number = normalize_card_number(
+            card.get("number") or card.get("card_number")
+        )
 
         for listing in listings:
             try:
@@ -38,6 +53,13 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
                 # 🚫 Filter Japanese listings
                 if is_blocked_title(title):
                     continue
+
+                # 🔢 Card number validation (only if title contains one)
+                title_card_number = extract_card_number_from_title(title)
+
+                if title_card_number and sheet_card_number:
+                    if title_card_number != sheet_card_number:
+                        continue
 
                 # Unique ID for dedupe
                 item_id = listing.get("itemId") or listing.get("itemWebUrl")
