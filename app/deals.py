@@ -5,25 +5,13 @@ import re
 dedupe_cache = set()
 
 BLOCKED_KEYWORDS = ["japanese", "japan"]
-
 CARD_NUMBER_REGEX = re.compile(r"#\s*([A-Za-z0-9/]+)")
-
-def calculate_psa_profit(price):
-    return round(price * 0.85 - 25, 2)
-
-def calculate_profit_margin(profit, cost):
-    if cost == 0:
-        return 0.0
-    return round((profit / cost) * 100, 2)
 
 def is_blocked_title(title: str) -> bool:
     t = title.lower()
     return any(word in t for word in BLOCKED_KEYWORDS)
 
 def extract_card_number_from_title(title: str):
-    """
-    Returns normalized card number from eBay title if present, else None
-    """
     match = CARD_NUMBER_REGEX.search(title)
     if not match:
         return None
@@ -56,7 +44,6 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
 
                 # 🔢 Card number validation (only if title contains one)
                 title_card_number = extract_card_number_from_title(title)
-
                 if title_card_number and sheet_card_number:
                     if title_card_number != sheet_card_number:
                         continue
@@ -78,12 +65,11 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
                 if price > card.get("market_avg", 0):
                     continue
 
-                # Calculate PSA profit/margin
-                psa_profit = calculate_psa_profit(card.get("psa_10_price", 0))
-                psa_margin = calculate_profit_margin(psa_profit, price)
-
-                if psa_margin < 100:
-                    continue
+                # Pull PSA profit/margin directly from sheet columns
+                psa_10_profit = card.get("PSA 10 Profit") or card.get("psa_10_profit") or 0
+                psa_10_margin = card.get("PSA 10 Profit Margin") or card.get("psa_10_margin") or 0
+                psa_9_profit = card.get("PSA 9 Profit") or card.get("psa_9_profit") or 0
+                psa_9_margin = card.get("PSA 9 Profit Margin") or card.get("psa_9_margin") or 0
 
                 alert_data = {
                     "card_name": card.get("card_name"),
@@ -95,10 +81,11 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
                     "ebay_price": price,
                     "market_avg": card.get("market_avg"),
                     "psa_10_price": card.get("psa_10_price"),
-                    "psa_10_profit": psa_profit,
-                    "psa_10_margin": psa_margin,
+                    "psa_10_profit": psa_10_profit,
+                    "psa_10_margin": psa_10_margin,
                     "psa_9_price": card.get("psa_9_price"),
-                    "psa_9_profit": calculate_psa_profit(card.get("psa_9_price", 0)),
+                    "psa_9_profit": psa_9_profit,
+                    "psa_9_margin": psa_9_margin,
                     "velocity": card.get("velocity"),
                     "url": listing.get("itemWebUrl") or "URL not available"
                 }
