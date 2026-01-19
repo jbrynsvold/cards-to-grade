@@ -6,11 +6,14 @@ dedupe_cache = set()
 
 BLOCKED_KEYWORDS = ["japanese", "japan", "korea", "korean"]
 
-# Matches:
+# Matches numbers like:
 #   #309
 #   #245/236
 #   #96/236
 CARD_NUMBER_REGEX = re.compile(r"#\s*(\d{1,4}(?:/\d{1,4})?)")
+
+# Matches years like 2020, 2021, 2022, 2023, 2024
+YEAR_REGEX = re.compile(r"\b(20\d{2})\b")
 
 
 def is_blocked_title(title: str) -> bool:
@@ -31,6 +34,21 @@ def normalize_card_number(num):
     return str(num).lower().replace(" ", "")
 
 
+def normalize_text(text: str):
+    if not text:
+        return ""
+    return text.lower().strip()
+
+
+def normalize_set(text: str):
+    """Lowercase, strip year numbers"""
+    if not text:
+        return ""
+    text = normalize_text(text)
+    text = YEAR_REGEX.sub("", text)  # remove years like 2020, 2021, etc.
+    return text.strip()
+
+
 async def process_ebay_results_batch(session, ebay_client, semaphore, card):
     async with semaphore:
         listings = await ebay_client.search_listings(session, card)
@@ -39,13 +57,15 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
             print(f"[Deals] No Buy It Now listings under market_avg for '{card['card_name']}'")
             return
 
-        sheet_card_number = normalize_card_number(
-            card.get("number") or card.get("card_number")
-        )
+        sheet_card_number = normalize_card_number(card.get("number") or card.get("card_number"))
+        sheet_player = normalize_text(card.get("player"))
+        sheet_set = normalize_set(card.get("set"))
+        sheet_parallel = normalize_text(card.get("parallel"))
 
         for listing in listings:
             try:
                 title = listing.get("title", "")
+                title_lower = title.lower()
 
                 # 🚫 Filter foreign language cards
                 if is_blocked_title(title):
@@ -53,10 +73,22 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
 
                 # 🔢 Card number validation (ONLY if eBay title has one)
                 title_card_number = extract_card_number_from_title(title)
-
                 if title_card_number and sheet_card_number:
                     if title_card_number != sheet_card_number:
                         continue
+
+                # ✅ Require full match on player
+                if sheet_player and sheet_player not in title_lower:
+                    continue
+
+                # ✅ Require full match on set (ignoring year)
+                normalized_title_set = normalize_set(title)
+                if sheet_set and sheet_set not in normalized_title_set:
+                    continue
+
+                # ✅ Require match on parallel if present
+                if sheet_parallel and sheet_parallel not in title_lower:
+                    continue
 
                 # Unique ID for dedupe
                 item_id = listing.get("itemId") or listing.get("itemWebUrl")
