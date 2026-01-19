@@ -52,6 +52,14 @@ def load_cards():
             "market_avg": parse_float(row.get("Avg")),
             "psa_10_price": parse_float(row.get("PSA 10 Price")),
             "psa_9_price": parse_float(row.get("PSA 9 Price")),
+            "psa_10_profit": parse_float(row.get("PSA 10 Profit")),
+            "psa_10_margin": parse_float(row.get("PSA 10 Profit Margin")),
+            "psa_9_profit": parse_float(row.get("PSA 9 Profit")),
+            "psa_9_margin": parse_float(row.get("PSA 9 Profit Margin")),
+            "velocity": parse_float(row.get("Velocity")),
+            "tcg_price": parse_float(row.get("Last Sale")),
+}
+
 
             # ✅ New fields from your sheet
             # Column M
