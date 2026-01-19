@@ -16,6 +16,7 @@ async def send_discord_alert(alert_data):
         f"PSA 10 Profit Margin: {alert_data['psa_10_margin']:.2f}%\n"
         f"PSA 9 Price: ${alert_data['psa_9_price']:.2f}\n"
         f"PSA 9 Profit: ${alert_data['psa_9_profit']:.2f}\n"
+        f"PSA 9 Profit Margin: {alert_data['psa_9_margin']:.2f}%\n"
         f"Velocity: {alert_data['velocity']}\n"
         f"Link: {alert_data['url']}"
     )
