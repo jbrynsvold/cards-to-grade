@@ -21,10 +21,19 @@ def load_cards():
     cards = []
 
     def parse_float(value):
-        try:
-            return float(str(value).replace("$", "").replace(",", "").strip())
-        except Exception:
+    try:
+        if value is None:
             return 0.0
+
+        s = str(value).strip()
+
+        # Handle percentages like "125%"
+        if s.endswith("%"):
+            return float(s.replace("%", "").replace(",", ""))
+
+        return float(s.replace("$", "").replace(",", ""))
+    except:
+        return 0.0
 
     for row in data:
         card_name = row.get("Card")
