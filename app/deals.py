@@ -5,7 +5,12 @@ import re
 dedupe_cache = set()
 
 BLOCKED_KEYWORDS = ["japanese", "japan", "korea", "korean"]
-CARD_NUMBER_REGEX = re.compile(r"(?:#|\b)(\d{1,4}/\d{1,4})\b")
+
+# Matches:
+#   #309
+#   #245/236
+#   #96/236
+CARD_NUMBER_REGEX = re.compile(r"#\s*(\d{1,4}(?:/\d{1,4})?)")
 
 
 def is_blocked_title(title: str) -> bool:
@@ -42,12 +47,13 @@ async def process_ebay_results_batch(session, ebay_client, semaphore, card):
             try:
                 title = listing.get("title", "")
 
-                # 🚫 Filter Japanese listings
+                # 🚫 Filter foreign language cards
                 if is_blocked_title(title):
                     continue
 
-                # 🔢 Card number validation (only if title contains one)
+                # 🔢 Card number validation (ONLY if eBay title has one)
                 title_card_number = extract_card_number_from_title(title)
+
                 if title_card_number and sheet_card_number:
                     if title_card_number != sheet_card_number:
                         continue
